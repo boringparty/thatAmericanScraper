@@ -1,6 +1,7 @@
 import csv
 import requests
 from bs4 import BeautifulSoup
+import time
 
 INPUT_CSV = "tal_episodes.csv"
 OUTPUT_CSV = "tal_episodes_full.csv"
@@ -19,10 +20,10 @@ def scrape_episode(url):
     act_texts = []
     seen_headers = set()
     for act in acts_divs:
-        header = act.select_one("header .field-item")
-        header_text = header.get_text(strip=True) if header else ""
+        header_div = act.select_one("header .field-item")
+        header_text = header_div.get_text(strip=True) if header_div else ""
         if header_text in seen_headers:
-            continue  # skip duplicate Prologue etc.
+            continue  # skip duplicate headers like Prologue
         seen_headers.add(header_text)
 
         # Act title (h2)
@@ -37,7 +38,7 @@ def scrape_episode(url):
         contributor_div = act.select_one("div.field-name-field-contributor .field-item")
         contributor = contributor_div.get_text(strip=True) if contributor_div else ""
 
-        # Song (optional)
+        # Song
         song_div = act.select_one("div.field-name-field-song .field-item a")
         song = song_div.get_text(strip=True) if song_div else ""
 
@@ -46,6 +47,7 @@ def scrape_episode(url):
             parts.append(f"By {contributor}")
         if song:
             parts.append(f"Song:{song}")
+
         act_texts.append("\n".join(parts))
 
     description = "\n\n".join(act_texts)
@@ -65,6 +67,7 @@ for row in rows:
         row["description"] = description
     except Exception as e:
         print(f"Error scraping {row['link']}: {e}")
+    time.sleep(1)  # polite pause
 
 # Write updated CSV
 with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
