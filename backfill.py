@@ -32,10 +32,23 @@ def parse_episode(entry):
     soup = fetch_episode_page(link)
     
     subtitle = entry.description.strip() if hasattr(entry, "description") else ""
-    
-    # Release date safe handling
-    release_date = getattr(entry, "published", None) or getattr(entry, "pubDate", None) or getattr(entry, "updated", "")
-    release_date = release_date.strip() if release_date else ""
+
+    # Use pubDate from RSS
+    pub_date = getattr(entry, "published", None) or getattr(entry, "pubDate", None) or getattr(entry, "updated", "")
+    pub_date = pub_date.strip() if pub_date else ""
+
+    # Release date from page
+    release_date = ""
+    if soup:
+        span = soup.find("span", class_="date-display-single")
+        if span:
+            raw = span.text.strip()
+            try:
+                from datetime import datetime
+                dt = datetime.strptime(raw, "%B %d, %Y")
+                release_date = dt.strftime("%Y-%m-%dT%H:%M:%S-00:00")
+            except ValueError:
+                release_date = raw
 
     # Title parsing
     title_text = entry.title.strip()
@@ -49,27 +62,28 @@ def parse_episode(entry):
     description_parts = []
     clean_url = ""
     if soup:
-        acts = soup.select("article.node-act")
-        for act in acts:
-            header = act.select_one("div.field-name-field-act-label")
-            act_name = header.get_text(strip=True) if header else ""
-            
-            body = act.select_one("div.field-name-body")
-            body_text = body.get_text(" ", strip=True) if body else ""
-            
-            contributor = act.select_one("div.field-name-field-contributor")
-            author_text = contributor.get_text(" ", strip=True) if contributor else ""
-            
-            song_field = act.select_one("div.field-name-field-song a")
-            song_text = f'Song:{song_field.get_text(strip=True)}' if song_field else ""
-            
-            if act_name or body_text or author_text or song_text:
-                parts = []
-                if act_name: parts.append(act_name)
-                if body_text: parts.append(body_text)
-                if author_text: parts.append(f"{author_text}")
-                if song_text: parts.append(song_text)
-                description_parts.append("\n".join(parts))
+        content_div = soup.select_one("div.content")
+        if content_div:
+            for act in content_div.select("article.node-act"):
+                header = act.select_one("div.field-name-field-act-label")
+                act_name = header.get_text(strip=True) if header else ""
+                
+                body = act.select_one("div.field-name-body")
+                body_text = body.get_text(" ", strip=True) if body else ""
+                
+                contributor = act.select_one("div.field-name-field-contributor")
+                author_text = contributor.get_text(" ", strip=True) if contributor else ""
+                
+                song_field = act.select_one("div.field-name-field-song a")
+                song_text = f'Song:{song_field.get_text(strip=True)}' if song_field else ""
+                
+                if act_name or body_text or author_text or song_text:
+                    parts = []
+                    if act_name: parts.append(act_name)
+                    if body_text: parts.append(body_text)
+                    if author_text: parts.append(f"{author_text}")
+                    if song_text: parts.append(song_text)
+                    description_parts.append("\n".join(parts))
         
         # Find clean episode
         clean_link_tag = soup.find("a", href=re.compile(r"clean.*\.mp3"))
@@ -82,7 +96,7 @@ def parse_episode(entry):
         "title": title_text,
         "link": link,
         "description": description_text,
-        "pubDate": "",  # will populate later
+        "pubDate": pub_date,
         "releaseDate": release_date,
         "guid": "",
         "episodeType": "Full",
