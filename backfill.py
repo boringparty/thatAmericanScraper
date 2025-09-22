@@ -67,7 +67,7 @@ def parse_episode(entry):
                 parts = []
                 if act_name: parts.append(act_name)
                 if body_text: parts.append(body_text)
-                if author_text: parts.append(f"By {author_text}")
+                if author_text: parts.append(f"{author_text}")
                 if song_text: parts.append(song_text)
                 description_parts.append("\n".join(parts))
         
