@@ -1,110 +1,118 @@
 import requests
 from bs4 import BeautifulSoup
+import feedparser
 import csv
 import time
-import feedparser
+import re
 
 RSS_URL = "https://awk.space/tal.xml"
 CSV_FILE = "tal_episodes_full.csv"
 
-def fetch_episode_page(url, retries=3):
-    for attempt in range(retries):
-        try:
-            time.sleep(1)  # throttle requests
-            r = requests.get(url)
-            r.raise_for_status()
-            return BeautifulSoup(r.text, "lxml")
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error {e} on {url}, attempt {attempt+1}")
-            if attempt == retries - 1:
-                print(f"Skipping {url}")
-                return None
-        except requests.exceptions.RequestException as e:
-            print(f"Request exception {e} on {url}, skipping")
-            return None
+# Sleep between page requests
+DELAY = 1  # seconds
+
+# CSV columns
+COLUMNS = [
+    "title","link","description","pubDate","releaseDate","guid","episodeType","episode",
+    "itunes_title","author","explicit","image","enclosure","duration","subtitle","summary","clean"
+]
+
+def fetch_episode_page(url):
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        time.sleep(DELAY)
+        return BeautifulSoup(r.text, "lxml")
+    except requests.RequestException as e:
+        print(f"Error fetching {url}: {e}")
+        return None
 
 def parse_episode(entry):
-    title_raw = entry.title.strip()
-    if not title_raw[0].isdigit():
-        return None  # skip non-numbered episodes
-
-    ep_num, ep_title = title_raw.split(":", 1)
-    ep_num = ep_num.strip()
-    ep_title = ep_title.strip()
-
     link = entry.link
-    subtitle = entry.description.strip()
-    release_date = entry.pubDate.strip()
-    pub_date = ""  # leave blank for now
-
     soup = fetch_episode_page(link)
+    
+    subtitle = entry.description.strip() if hasattr(entry, "description") else ""
+    
+    # Release date safe handling
+    release_date = getattr(entry, "published", None) or getattr(entry, "pubDate", None) or getattr(entry, "updated", "")
+    release_date = release_date.strip() if release_date else ""
+
+    # Title parsing
+    title_text = entry.title.strip()
+    episode_match = re.match(r"(\d+):\s*(.*)", title_text)
+    if episode_match:
+        episode_num, episode_title = episode_match.groups()
+    else:
+        episode_num, episode_title = "", title_text
+
+    # Acts and description
     description_parts = []
-
+    clean_url = ""
     if soup:
-        # get top release date if available
-        date_tag = soup.find("span", class_="date-display-single")
-        if date_tag:
-            release_date = date_tag.get_text(strip=True)
-
-        # get acts / prologue
         acts = soup.select("article.node-act")
         for act in acts:
-            header = act.find("div", class_="field-name-field-act-label")
-            header_text = header.get_text(strip=True) if header else ""
-            body = act.find("div", class_="field-name-body")
-            body_text = body.get_text(separator="\n", strip=True) if body else ""
-            by = act.select_one(".field-name-field-contributor .field-item")
-            by_text = f"By {by.get_text(strip=True)}" if by else ""
-            song = act.select_one(".field-name-field-song .field-item a")
-            song_text = f"Song:{song.get_text(strip=True)}" if song else ""
-            if header_text or body_text or by_text or song_text:
-                description_parts.append("\n".join(filter(None, [header_text, body_text, by_text, song_text])))
+            header = act.select_one("div.field-name-field-act-label")
+            act_name = header.get_text(strip=True) if header else ""
+            
+            body = act.select_one("div.field-name-body")
+            body_text = body.get_text(" ", strip=True) if body else ""
+            
+            contributor = act.select_one("div.field-name-field-contributor")
+            author_text = contributor.get_text(" ", strip=True) if contributor else ""
+            
+            song_field = act.select_one("div.field-name-field-song a")
+            song_text = f'Song:{song_field.get_text(strip=True)}' if song_field else ""
+            
+            if act_name or body_text or author_text or song_text:
+                parts = []
+                if act_name: parts.append(act_name)
+                if body_text: parts.append(body_text)
+                if author_text: parts.append(f"By {author_text}")
+                if song_text: parts.append(song_text)
+                description_parts.append("\n".join(parts))
+        
+        # Find clean episode
+        clean_link_tag = soup.find("a", href=re.compile(r"clean.*\.mp3"))
+        if clean_link_tag:
+            clean_url = clean_link_tag["href"]
+    
+    description_text = "\n\n".join(description_parts)
 
-        # find clean version
-        clean_link_tag = soup.find("a", href=lambda x: x and "clean" in x)
-        clean_url = clean_link_tag["href"] if clean_link_tag else ""
-
-    else:
-        description_parts.append(subtitle)
-        clean_url = ""
-
-    description_full = "\n\n".join(description_parts)
-
-    return {
-        "title": f"{ep_num}: {ep_title}",
+    row = {
+        "title": title_text,
         "link": link,
-        "description": f"{subtitle}\n\n{description_full}",
-        "pubDate": pub_date,
+        "description": description_text,
+        "pubDate": "",  # will populate later
         "releaseDate": release_date,
         "guid": "",
         "episodeType": "Full",
-        "episode": ep_num,
-        "itunes_title": ep_title,
+        "episode": episode_num,
+        "itunes_title": episode_title,
         "author": "This American Life",
-        "explicit": "no",
+        "explicit": "yes",
         "image": "",
-        "enclosure": "",  # will populate from main RSS
+        "enclosure": "",  # weekly RSS will fill this
         "duration": "",
         "subtitle": subtitle,
         "summary": "",
         "clean": clean_url
     }
+    return row
 
 def main():
     feed = feedparser.parse(RSS_URL)
     rows = []
-
     for entry in feed.entries:
-        ep_data = parse_episode(entry)
-        if ep_data:
+        if re.match(r"\d+:.*", entry.title):
+            ep_data = parse_episode(entry)
             rows.append(ep_data)
-
-    # write CSV with proper quoting
+    
     with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()), quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(f, fieldnames=COLUMNS, quoting=csv.QUOTE_ALL)
         writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
+        for r in rows:
+            writer.writerow(r)
+    print(f"Saved {len(rows)} episodes to {CSV_FILE}")
 
 if __name__ == "__main__":
     main()
