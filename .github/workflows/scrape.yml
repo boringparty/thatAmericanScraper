@@ -4,11 +4,7 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches:
-      - main
-#  schedule:       # Uncomment to enable daily schedule
-#    - cron: '0 6 * * *'  # Runs daily at 06:00 UTC
+  workflow_dispatch:
 
 jobs:
   scrape:
