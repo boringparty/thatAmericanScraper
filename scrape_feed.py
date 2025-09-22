@@ -13,12 +13,16 @@ resp.raise_for_status()
 root = ET.fromstring(resp.content)
 items = root.findall(".//item")
 
+# Namespace map
+ns = {
+    "itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"
+}
+
 # CSV columns
 fields = [
-    "title", "link", "description", "pubDate", "releaseDate", "guid",
-    "episodeType", "episode", "itunes_title", "author",
-    "explicit", "image", "enclosure", "duration", "subtitle",
-    "summary", "clean"
+    "title","link","description","pubDate","releaseDate","guid",
+    "episodeType","episode","itunes_title","author","explicit",
+    "image","enclosure","duration","subtitle","summary","clean"
 ]
 
 with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
@@ -26,30 +30,23 @@ with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
     writer.writeheader()
     
     for item in items:
-        def get(tag, ns=None):
-            if ns:
-                elem = item.find(f"{ns}{tag}")
-                return elem.text if elem is not None else ""
-            elem = item.find(tag)
-            return elem.text if elem is not None else ""
-        
         row = {
-            "title": get("title"),
-            "link": get("link"),
-            "description": get("itunes:summary", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "pubDate": get("pubDate"),
-            "releaseDate": get("pubDate"),  # placeholder for original air date
-            "guid": get("guid"),
-            "episodeType": get("itunes:episodeType", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "episode": get("itunes:episode", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "itunes_title": get("itunes:title", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "author": get("itunes:author", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "explicit": "no" if get("itunes:explicit", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}") == "false" else get("itunes:explicit", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "image": get("itunes:image", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
+            "title": item.findtext("title", default=""),
+            "link": item.findtext("link", default=""),
+            "description": item.findtext("itunes:summary", default="", namespaces=ns),
+            "pubDate": item.findtext("pubDate", default=""),
+            "releaseDate": "",  # empty for now
+            "guid": item.findtext("guid", default=""),
+            "episodeType": item.findtext("itunes:episodeType", default="", namespaces=ns),
+            "episode": item.findtext("itunes:episode", default="", namespaces=ns),
+            "itunes_title": item.findtext("itunes:title", default="", namespaces=ns),
+            "author": item.findtext("itunes:author", default="", namespaces=ns),
+            "explicit": "no" if item.findtext("itunes:explicit", default="", namespaces=ns) == "false" else item.findtext("itunes:explicit", default="", namespaces=ns),
+            "image": item.find("itunes:image", ns).attrib.get("href") if item.find("itunes:image", ns) is not None else "",
             "enclosure": item.find("enclosure").attrib.get("url") if item.find("enclosure") is not None else "",
-            "duration": get("itunes:duration", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "subtitle": get("itunes:subtitle", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
-            "summary": get("itunes:summary", ns="{http://www.itunes.com/dtds/podcast-1.0.dtd}"),
+            "duration": item.findtext("itunes:duration", default="", namespaces=ns),
+            "subtitle": item.findtext("itunes:subtitle", default="", namespaces=ns),
+            "summary": item.findtext("itunes:summary", default="", namespaces=ns),
             "clean": ""
         }
         writer.writerow(row)
