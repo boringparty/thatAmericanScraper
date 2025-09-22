@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import re
 import time
+from datetime import datetime
 
 RSS_URL = "https://www.thisamericanlife.org/podcast/rss.xml"
 CSV_FILE = "tal_episodes.csv"
@@ -20,20 +21,31 @@ fields = [
 
 def fetch_episode_page(url):
     time.sleep(1)  # avoid hammering the site
-    r = requests.get(url)
-    r.raise_for_status()
-    return BeautifulSoup(r.text, "lxml")
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        return BeautifulSoup(r.text, "lxml")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch {url}: {e}")
+        return None
+
+def normalize_description(text):
+    return re.sub(r'\n\s*\n+', '\n', text.strip())
 
 def get_release_date(soup):
     span = soup.find("span", class_="date-display-single")
-    return span.text.strip() if span else ""
+    if not span:
+        return ""
+    raw = span.text.strip()  # e.g., "November 6, 2020"
+    try:
+        dt = datetime.strptime(raw, "%B %d, %Y")
+        return dt.strftime("%Y-%m-%dT%H:%M:%S-00:00")  # ISO 8601
+    except ValueError:
+        return raw
 
 def get_clean_episode(soup):
     link = soup.find("a", href=re.compile(r"clean"))
     return link['href'] if link else ""
-
-def normalize_description(text):
-    return re.sub(r'\n\s*\n+', '\n', text.strip())
 
 # Fetch RSS
 resp = requests.get(RSS_URL)
@@ -48,12 +60,15 @@ try:
 except FileNotFoundError:
     existing = []
 
-# We'll prepend the new episode
+# Prepare new rows (latest episode only)
 new_rows = []
 
-for item in items[:1]:  # only the latest episode
+for item in items[:1]:  # only the latest
     link = item.findtext("link", default="")
     soup = fetch_episode_page(link)
+    if soup is None:
+        print(f"Skipping episode {link}")
+        continue
     
     raw_desc = item.findtext("itunes:summary", default="", namespaces=ns)
     description = normalize_description(raw_desc)
