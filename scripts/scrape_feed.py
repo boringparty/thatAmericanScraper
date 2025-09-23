@@ -5,9 +5,10 @@ from bs4 import BeautifulSoup
 import re
 import time
 from datetime import datetime
+import os
 
-RSS_URL = "https://www.thisamericanlife.org/podcast/rss.xml"
-CSV_FILE = "../tal_episodes.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, "..", "tal_episodes.csv")
 
 # Namespace map
 ns = {"itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
