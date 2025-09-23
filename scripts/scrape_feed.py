@@ -9,6 +9,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "..", "tal_episodes.csv")
+RSS_URL = "https://thisamericanlife.org/podcast/rss.xml"
 
 # Namespace map
 ns = {"itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
