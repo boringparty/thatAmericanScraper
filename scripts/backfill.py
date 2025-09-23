@@ -6,7 +6,7 @@ import time
 import re
 
 RSS_URL = "https://awk.space/tal.xml"
-CSV_FILE = "tal_episodes_full.csv"
+CSV_FILE = "../tal_episodes_full.csv"
 
 # Sleep between page requests
 DELAY = 1  # seconds
