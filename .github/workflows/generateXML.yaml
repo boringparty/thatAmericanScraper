@@ -27,7 +27,7 @@ jobs:
 
       - name: Run CSV to XML script
         run: |
-          python csv_to_xml.py
+          python scripts/csv_to_xml.py
 
       - name: Commit & push XML if changed
         run: |
