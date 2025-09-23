@@ -3,10 +3,14 @@ import xml.etree.ElementTree as ET
 from dateutil import parser as date_parser
 from datetime import datetime
 import iso8601
+import os
 
-CSV_FILE = "../tal_episodes.csv"
-XML_FILE = "../feed.xml"
+# --- Paths (GH Actions–safe) ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, "..", "tal_episodes.csv")
+XML_FILE = os.path.join(BASE_DIR, "..", "feed.xml")
 
+# --- Date parsing helpers ---
 def parse_date(date_str):
     if not date_str:
         return None
@@ -24,15 +28,16 @@ def sort_key(row):
     dt = parse_date(date_str)
     return dt or datetime.min
 
+# --- Main ---
 def main():
     # Read CSV
     with open(CSV_FILE, newline="", encoding="utf-8") as f:
         reader = list(csv.DictReader(f))
     
-    # Sort by pubDate/releaseDate descending
+    # Sort descending by date
     rows = sorted(reader, key=sort_key, reverse=True)
 
-    # Create XML
+    # Build RSS
     rss = ET.Element('rss', version="2.0", attrib={"xmlns:itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"})
     channel = ET.SubElement(rss, 'channel')
 
@@ -48,7 +53,7 @@ def main():
         release_date_iso = row['releaseDate'].strip()
         release_date = release_date_iso.split("T")[0] if "T" in release_date_iso else release_date_iso
 
-        # Title handling: Repeat logic
+        # Title: check for repeats
         pub_dt = parse_date(row['pubDate'].strip()) if row['pubDate'].strip() else None
         rel_dt = parse_date(row['releaseDate'].strip()) if row['releaseDate'].strip() else None
         title_base = row['title'].strip()
@@ -56,13 +61,12 @@ def main():
         if pub_dt and rel_dt and pub_dt.isocalendar()[1] != rel_dt.isocalendar()[1]:
             title += " - Repeat"
 
-        # Items: normal and clean
+        # Normal and clean items
         for clean_suffix, enclosure_url in [(False, row['enclosure'].strip()), (True, row['clean'].strip())]:
             if clean_suffix and not enclosure_url:
                 continue
             item_element = ET.SubElement(channel, 'item')
-            item_title = title + (" (Clean)" if clean_suffix else "")
-            ET.SubElement(item_element, 'title').text = item_title
+            ET.SubElement(item_element, 'title').text = title + (" (Clean)" if clean_suffix else "")
             ET.SubElement(item_element, 'link').text = row['link'].strip() + ("?clean" if clean_suffix else "")
             ET.SubElement(item_element, 'itunes:episode').text = row['episode'].strip()
             ET.SubElement(item_element, 'itunes:episodeType').text = "full"
@@ -73,6 +77,7 @@ def main():
             ET.SubElement(item_element, 'pubDate').text = pub_date_val
             ET.SubElement(item_element, 'enclosure', url=enclosure_url, type="audio/mpeg")
 
+    # Write XML
     tree = ET.ElementTree(rss)
     tree.write(XML_FILE, encoding="utf-8", xml_declaration=True)
 
