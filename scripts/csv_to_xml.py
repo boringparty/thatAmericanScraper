@@ -4,6 +4,7 @@ from dateutil import parser as date_parser
 from datetime import datetime
 import iso8601
 import os
+import xml.dom.minidom as minidom
 
 # --- Paths (GH Actions–safe) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -77,9 +78,11 @@ def main():
             ET.SubElement(item_element, 'pubDate').text = pub_date_val
             ET.SubElement(item_element, 'enclosure', url=enclosure_url, type="audio/mpeg")
 
-    # Write XML
-    tree = ET.ElementTree(rss)
-    tree.write(XML_FILE, encoding="utf-8", xml_declaration=True)
+    # Pretty-print XML
+    xml_str = ET.tostring(rss, encoding="utf-8")
+    pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+    with open(XML_FILE, "w", encoding="utf-8") as f:
+        f.write(pretty_xml)
 
 if __name__ == "__main__":
     main()
