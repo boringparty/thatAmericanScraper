@@ -94,7 +94,7 @@ for item in items[:1]:  # only the latest
         "enclosure": item.find("enclosure").attrib.get("url") if item.find("enclosure") is not None else "",
         "duration": item.findtext("itunes:duration", default="", namespaces=ns),
         "subtitle": item.findtext("itunes:subtitle", default="", namespaces=ns),
-        "summary": item.findtext("itunes:summary", default="", namespaces=ns),
+        "summary": "",
         "clean": get_clean_episode(soup)
     }
     new_rows.append(row)
