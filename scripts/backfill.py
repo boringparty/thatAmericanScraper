@@ -4,9 +4,11 @@ import feedparser
 import csv
 import time
 import re
+import os
 
 RSS_URL = "https://awk.space/tal.xml"
-CSV_FILE = "../tal_episodes_full.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = os.path.join(BASE_DIR, "..", "tal_episodes_full.csv")
 
 # Sleep between page requests
 DELAY = 1  # seconds
@@ -99,7 +101,7 @@ def parse_episode(entry):
         "pubDate": pub_date,
         "releaseDate": release_date,
         "guid": "",
-        "episodeType": "Full",
+        "episodeType": "full",
         "episode": episode_num,
         "itunes_title": episode_title,
         "author": "This American Life",
