@@ -4,8 +4,8 @@ from dateutil import parser as date_parser
 from datetime import datetime
 import iso8601
 
-CSV_FILE = "tal_episodes.csv"
-XML_FILE = "feed.xml"
+CSV_FILE = "../tal_episodes.csv"
+XML_FILE = "../feed.xml"
 
 def parse_date(date_str):
     if not date_str:
