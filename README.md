@@ -6,3 +6,5 @@ Problem: the podcast posts clean copies of their episodes to their site. For the
 Solution: Scrape the site for old episodes (normal and clean), have that in a CSV, then have the official feed also update that CSV... and generate a new XML that includes everything. 
 
 Another benefit is that this will clearly mark repeats. Sure, we can tell by the episode number, but it'll be handy. The description for those episodes also notes the original air date, which is handy. 
+
+If TAL releases a feed for clean episodes, I'll likely take this down. 
