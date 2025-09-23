@@ -27,7 +27,7 @@ jobs:
           pip install requests beautifulsoup4 lxml feedparser python-dateutil iso8601
 
       - name: Run feed scraper
-        run: python scripts/scrape_latest.py  # or your scraper/backfill script
+        run: python scripts/scrape.py  # or your scraper/backfill script
 
       - name: Run CSV to XML
         run: python scripts/csv_to_xml.py
