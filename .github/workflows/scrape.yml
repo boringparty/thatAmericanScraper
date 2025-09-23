@@ -25,7 +25,7 @@ jobs:
           pip install requests beautifulsoup4 lxml
 
       - name: Run scraper
-        run: python scrape_feed.py
+        run: python scripts/scrape_feed.py
 
       - name: Commit & push CSV if changed
         run: |
