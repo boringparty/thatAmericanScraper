@@ -31,10 +31,11 @@ def fetch_episode_page(url):
 
 def normalize_description(text):
     text = text.strip()
-    # collapse multiple blank lines into a single blank line
+    # ensure a blank line between paragraphs
     text = re.sub(r'\n\s*\n+', '\n\n', text)
+    # put a newline after Prologue: or Act One:, Act Two:, etc.
+    text = re.sub(r'(Prologue:|Act \w+:)', r'\n\1\n', text)
     return text
-
 
 def get_release_date(soup):
     span = soup.find("span", class_="date-display-single")
