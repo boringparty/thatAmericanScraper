@@ -83,7 +83,7 @@ for item in items[:1]:  # only the latest
         "link": link,
         "description": normalize_description(item.findtext("itunes:summary", default="", namespaces=ns)),
         "pubDate": item.findtext("pubDate", default=""),
-        "releaseDate": get_release_date(soup),
+        "releaseDate": get_release_date(soup).split("T")[0],
         "guid": item.findtext("guid", default=""),
         "episodeType": "full",
         "episode": item.findtext("itunes:episode", default="", namespaces=ns),
