@@ -76,7 +76,7 @@ for item in items[:1]:  # only the latest
     row = {
         "title": item.findtext("title", default=""),
         "link": link,
-        "description": description,
+        "description": item.findtext("itunes:subtitle", default="", namespaces=ns),
         "pubDate": item.findtext("pubDate", default=""),
         "releaseDate": get_release_date(soup),
         "guid": item.findtext("guid", default=""),
