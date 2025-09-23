@@ -23,8 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt || true
-          pip install beautifulsoup4 lxml
+          pip install beautifulsoup4 lxml python-dateutil
 
       - name: Run CSV to XML script
         run: |
