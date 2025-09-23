@@ -34,7 +34,7 @@ def normalize_description(text):
     # ensure a blank line between paragraphs
     text = re.sub(r'\n\s*\n+', '\n\n', text)
     # put a newline after Prologue: or Act One:, Act Two:, etc.
-    text = re.sub(r'(Prologue:|Act \w+:) ', r'\n\1\n', text)
+    text = re.sub(r'(Prologue:|Act \w+:) ', r'\1\n', text)
     return text
 
 def get_release_date(soup):
