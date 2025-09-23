@@ -1,3 +1,6 @@
+
+<img src="https://i.imgur.com/pTMCfn9.png" width="200" height="200">
+
 # That American Scraper
 Don't use this... or rely on it, at least. 
 
