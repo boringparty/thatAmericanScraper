@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 
 RSS_URL = "https://www.thisamericanlife.org/podcast/rss.xml"
-CSV_FILE = "tal_episodes.csv"
+CSV_FILE = "../tal_episodes.csv"
 
 # Namespace map
 ns = {"itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
