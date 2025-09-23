@@ -7,12 +7,34 @@ CSV_FILE = "tal_episodes.csv"
 XML_FILE = "feed.xml"
 
 def iso_week(date_str):
-    """Return ISO week number from YYYY-MM-DD string"""
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
         return dt.isocalendar()[1]
     except:
         return None
+
+def parse_date(row):
+    # Return datetime object: pubDate preferred, fallback to releaseDate
+    pub_str = row.get("pubDate") or ""
+    release_str = row.get("releaseDate") or ""
+    dt = None
+    if pub_str:
+        try:
+            dt = datetime.strptime(pub_str, "%a, %d %b %Y %H:%M:%S %z")
+        except:
+            dt = None
+    if dt is None and release_str:
+        try:
+            dt = datetime.strptime(release_str, "%Y-%m-%d")
+        except:
+            dt = None
+    return dt
+
+# Read CSV
+with open(CSV_FILE, newline="", encoding="utf-8") as f:
+    reader = list(csv.DictReader(f))
+    # Sort newest first
+    rows = sorted(reader, key=parse_date, reverse=True)
 
 # XML header
 rss = ET.Element("rss", version="2.0", attrib={
@@ -26,58 +48,49 @@ ET.SubElement(channel, "language").text = "en"
 ET.SubElement(channel, "copyright").text = "Copyright © Ira Glass / This American Life"
 ET.SubElement(channel, "itunes:image", href="https://i.imgur.com/pTMCfn9.png")
 
-with open(CSV_FILE, newline="", encoding="utf-8") as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        title_base = row["title"]
-        pub_date_str = row["pubDate"]
-        release_date_str = row["releaseDate"]
+for row in rows:
+    title_base = row["title"]
+    pub_date_str = row["pubDate"]
+    release_date_str = row["releaseDate"]
 
-        # Determine if repeat
-        repeat = False
-        if pub_date_str and release_date_str:
-            try:
-                pub_dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z")
-            except ValueError:
-                pub_dt = None
-            try:
-                release_dt = datetime.strptime(release_date_str, "%Y-%m-%d")
-            except ValueError:
-                release_dt = None
-            if pub_dt and release_dt:
-                if pub_dt.isocalendar()[1] != release_dt.isocalendar()[1]:
-                    repeat = True
+    # Determine repeat
+    repeat = False
+    if pub_date_str and release_date_str:
+        try:
+            pub_dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z")
+            release_dt = datetime.strptime(release_date_str, "%Y-%m-%d")
+            if pub_dt.isocalendar()[1] != release_dt.isocalendar()[1]:
+                repeat = True
+        except:
+            pass
 
-        title_final = f"{title_base}{' - Repeat' if repeat else ''}"
+    title_final = f"{title_base}{' - Repeat' if repeat else ''}"
 
-        # Description with releaseDate
-        description_text = f"{row['subtitle']}\n\n{row['description']}\n\nOriginally Aired: {release_date_str}"
+    description_text = f"{row['subtitle']}\n\n{row['description']}\n\nOriginally Aired: {release_date_str}"
+    enclosure_url = row["clean"] if row["clean"] else row["enclosure"]
 
-        # Pick enclosure: clean if exists, otherwise regular
-        enclosure_url = row["clean"] if row["clean"] else row["enclosure"]
+    # Regular item
+    item = ET.SubElement(channel, "item")
+    ET.SubElement(item, "title").text = title_final
+    ET.SubElement(item, "link").text = row["link"]
+    ET.SubElement(item, "itunes:episode").text = row["episode"]
+    ET.SubElement(item, "itunes:episodeType").text = row["episodeType"]
+    ET.SubElement(item, "itunes:explicit").text = "yes" if row["clean"] else "no"
+    ET.SubElement(item, "description").text = description_text
+    ET.SubElement(item, "pubDate").text = pub_date_str
+    ET.SubElement(item, "enclosure", url=enclosure_url, type="audio/mpeg")
 
-        # Regular item
-        item = ET.SubElement(channel, "item")
-        ET.SubElement(item, "title").text = title_final
-        ET.SubElement(item, "link").text = row["link"]
-        ET.SubElement(item, "itunes:episode").text = row["episode"]
-        ET.SubElement(item, "itunes:episodeType").text = row["episodeType"]
-        ET.SubElement(item, "itunes:explicit").text = "yes" if row["clean"] else "no"
-        ET.SubElement(item, "description").text = description_text
-        ET.SubElement(item, "pubDate").text = pub_date_str
-        ET.SubElement(item, "enclosure", url=enclosure_url, type="audio/mpeg")
-
-        # Clean item if available
-        if row["clean"]:
-            clean_item = ET.SubElement(channel, "item")
-            ET.SubElement(clean_item, "title").text = f"{title_final} (Clean)"
-            ET.SubElement(clean_item, "link").text = row["link"]
-            ET.SubElement(clean_item, "itunes:episode").text = row["episode"]
-            ET.SubElement(clean_item, "itunes:episodeType").text = row["episodeType"]
-            ET.SubElement(clean_item, "itunes:explicit").text = "yes"
-            ET.SubElement(clean_item, "description").text = description_text
-            ET.SubElement(clean_item, "pubDate").text = pub_date_str
-            ET.SubElement(clean_item, "enclosure", url=row["clean"], type="audio/mpeg")
+    # Clean item if available
+    if row["clean"]:
+        clean_item = ET.SubElement(channel, "item")
+        ET.SubElement(clean_item, "title").text = f"{title_final} (Clean)"
+        ET.SubElement(clean_item, "link").text = row["link"]
+        ET.SubElement(clean_item, "itunes:episode").text = row["episode"]
+        ET.SubElement(clean_item, "itunes:episodeType").text = row["episodeType"]
+        ET.SubElement(clean_item, "itunes:explicit").text = "yes"
+        ET.SubElement(clean_item, "description").text = description_text
+        ET.SubElement(clean_item, "pubDate").text = pub_date_str
+        ET.SubElement(clean_item, "enclosure", url=row["clean"], type="audio/mpeg")
 
 # Pretty print and save
 xml_str = minidom.parseString(ET.tostring(rss)).toprettyxml(indent="  ")
