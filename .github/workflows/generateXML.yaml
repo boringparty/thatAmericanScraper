@@ -26,8 +26,7 @@ jobs:
           pip install beautifulsoup4 lxml python-dateutil iso8601
 
       - name: Run CSV to XML script
-        run: |
-          python scripts/csv_to_xml.py
+        run: python scripts/csv_to_xml.py
 
       - name: Commit & push XML if changed
         run: |
