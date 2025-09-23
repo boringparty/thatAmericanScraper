@@ -1,9 +1,9 @@
 name: TAL Full Update
 
 on:
-  workflow_dispatch:  # manual trigger
-#  schedule:
-#    - cron: '0 3 * * *'  # optional daily at 03:00 UTC
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * 0'
 
 permissions:
   contents: write
