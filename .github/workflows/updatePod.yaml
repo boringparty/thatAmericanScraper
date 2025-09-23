@@ -1,0 +1,41 @@
+name: TAL Full Update
+
+on:
+  workflow_dispatch:  # manual trigger
+#  schedule:
+#    - cron: '0 3 * * *'  # optional daily at 03:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml feedparser python-dateutil iso8601
+
+      - name: Run feed scraper
+        run: python scripts/scrape_latest.py  # or your scraper/backfill script
+
+      - name: Run CSV to XML
+        run: python scripts/csv_to_xml.py
+
+      - name: Commit & push CSV + XML if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tal_episodes.csv feed.xml
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update TAL feed and CSV"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
