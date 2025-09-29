@@ -79,7 +79,7 @@ for item in items[:1]:  # only the latest
     
     raw_desc = item.findtext("itunes:summary", default="", namespaces=ns)
     description = normalize_description(raw_desc)
-    explicit_raw = item.findtext("itunes:explicit", default="no", namespaces=ns).lower()
+    
     
     row = {
         "title": item.findtext("title", default=""),
@@ -93,7 +93,7 @@ for item in items[:1]:  # only the latest
         "itunes_title": item.findtext("itunes:title", default="", namespaces=ns),
         "author": "This American Life",
 
-        "explicit": "true" if explicit_raw in ("yes", "true") else "false",
+               "explicit": "no" if item.findtext("itunes:explicit", default="", namespaces=ns) == "false" else item.findtext("itunes:explicit", default="", namespaces=ns),
         "image": item.find("itunes:image", ns).attrib.get("href") if item.find("itunes:image", ns) is not None else "",
         "enclosure": item.find("enclosure").attrib.get("url") if item.find("enclosure") is not None else "",
         "duration": item.findtext("itunes:duration", default="", namespaces=ns),
