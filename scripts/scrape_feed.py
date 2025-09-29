@@ -79,12 +79,16 @@ for item in items[:1]:  # only the latest
     
     raw_desc = item.findtext("itunes:summary", default="", namespaces=ns)
     description = normalize_description(raw_desc)
+    clean_url = get_clean_episode(soup)
     
+    explicit_raw = item.findtext("itunes:explicit", default="no", namespaces=ns).lower()
+    # convert to TRUE/FALSE; force TRUE if no clean URL
+    explicit_flag = "true" if (explicit_raw in ("yes", "true") or not clean_url) else "false"
     
     row = {
         "title": item.findtext("title", default=""),
         "link": link,
-        "description": normalize_description(item.findtext("itunes:summary", default="", namespaces=ns)),
+        "description": description,
         "pubDate": item.findtext("pubDate", default=""),
         "releaseDate": get_release_date(soup).split("T")[0],
         "guid": item.findtext("guid", default=""),
@@ -92,14 +96,13 @@ for item in items[:1]:  # only the latest
         "episode": item.findtext("itunes:episode", default="", namespaces=ns),
         "itunes_title": item.findtext("itunes:title", default="", namespaces=ns),
         "author": "This American Life",
-
-               "explicit": "no" if item.findtext("itunes:explicit", default="", namespaces=ns) == "false" else item.findtext("itunes:explicit", default="", namespaces=ns),
+        "explicit": explicit_flag,
         "image": item.find("itunes:image", ns).attrib.get("href") if item.find("itunes:image", ns) is not None else "",
         "enclosure": item.find("enclosure").attrib.get("url") if item.find("enclosure") is not None else "",
         "duration": item.findtext("itunes:duration", default="", namespaces=ns),
         "subtitle": item.findtext("itunes:subtitle", default="", namespaces=ns),
         "summary": "",
-        "clean": get_clean_episode(soup)
+        "clean": clean_url
     }
     new_rows.append(row)
 
