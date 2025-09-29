@@ -6,7 +6,7 @@ import iso8601
 import os
 import xml.dom.minidom as minidom
 
-# --- Paths (GH Actions–safe) ---
+# --- Paths ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "..", "tal_episodes.csv")
 XML_FILE = os.path.join(BASE_DIR, "..", "feed.xml")
@@ -24,7 +24,6 @@ def parse_date(date_str):
             return None
 
 def sort_key(row):
-    # use pubDate if present, else releaseDate
     date_str = row['pubDate'].strip() or row['releaseDate'].strip()
     dt = parse_date(date_str)
     return dt or datetime.min
@@ -50,11 +49,9 @@ def main():
     ET.SubElement(channel, 'itunes:image', href="https://i.imgur.com/pTMCfn9.png")
 
     for row in rows:
-        # Original date for description
         release_date_iso = row['releaseDate'].strip()
         release_date = release_date_iso.split("T")[0] if "T" in release_date_iso else release_date_iso
 
-        # Title: check for repeats
         pub_dt = parse_date(row['pubDate'].strip()) if row['pubDate'].strip() else None
         rel_dt = parse_date(row['releaseDate'].strip()) if row['releaseDate'].strip() else None
         title_base = row['title'].strip()
@@ -71,7 +68,11 @@ def main():
             ET.SubElement(item_element, 'link').text = row['link'].strip() + ("?clean" if clean_suffix else "")
             ET.SubElement(item_element, 'itunes:episode').text = row['episode'].strip()
             ET.SubElement(item_element, 'itunes:episodeType').text = "full"
-            ET.SubElement(item_element, 'itunes:explicit').text = "yes" if enclosure_url else "no"
+
+            # Use CSV explicit field; force true if no clean URL
+            explicit_flag = row['explicit'].strip().upper() == "TRUE" or (not clean_suffix and not row['clean'].strip())
+            ET.SubElement(item_element, 'itunes:explicit').text = "true" if explicit_flag else "false"
+
             desc_text = f"{row['description'].strip()}\n\nOriginally Aired: {release_date}"
             ET.SubElement(item_element, 'description').text = desc_text
             pub_date_val = row['pubDate'].strip() or row['releaseDate'].strip()
