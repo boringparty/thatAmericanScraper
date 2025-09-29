@@ -73,7 +73,9 @@ def main():
             explicit_flag = row['explicit'].strip().upper() == "TRUE" or (not clean_suffix and not row['clean'].strip())
             ET.SubElement(item_element, 'itunes:explicit').text = "true" if explicit_flag else "false"
 
-            desc_text = f"{row['description'].strip()}\n\nOriginally Aired: {release_date}"
+            desc_dt = parse_date(row['pubDate'].strip() or row['releaseDate'].strip())
+            desc_date_str = desc_dt.strftime("%Y-%m-%d") if desc_dt else ""
+            desc_text = f"{row['description'].strip()}\n\nOriginally Aired: {desc_date_str}"
             ET.SubElement(item_element, 'description').text = desc_text
             pub_date_val = row['pubDate'].strip() or row['releaseDate'].strip()
             ET.SubElement(item_element, 'pubDate').text = pub_date_val
