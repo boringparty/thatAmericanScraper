@@ -65,30 +65,39 @@ try:
 except FileNotFoundError:
     existing = []
 
-# --- Build set of existing (releaseDate, title) keys ---
-existing_keys = {(row['releaseDate'], row['title']) for row in existing}
+# --- Build set of normalized existing keys (releaseDate, title) ---
+existing_keys = {
+    (row['releaseDate'].strip(), row['title'].strip().lower())
+    for row in existing
+}
 
 # --- Prepare new rows ---
 new_rows = []
 
 for item in items[:1]:  # latest only
-    link = item.findtext("link", default="")
+    link = item.findtext("link", default="").strip()
     soup = fetch_episode_page(link)
     if soup is None:
         print(f"Skipping episode {link}")
         continue
 
-    release_date = get_release_date(soup).split("T")[0]
+    # Normalize releaseDate and title for deduplication
+    release_date = get_release_date(soup)
+    release_date_key = release_date.split("T")[0].strip()
     title = item.findtext("title", default="").strip()
+    title_key = title.lower()
 
-    if (release_date, title) in existing_keys:
-        print(f"Skipping duplicate: {title} ({release_date})")
+    # Skip duplicates
+    if (release_date_key, title_key) in existing_keys:
+        print(f"Skipping duplicate: {title} ({release_date_key})")
         continue
 
+    # Normalize description
     raw_desc = item.findtext("itunes:summary", default="", namespaces=ns)
     description = normalize_description(raw_desc)
     clean_url = get_clean_episode(soup)
 
+    # Explicit flag
     explicit_raw = item.findtext("itunes:explicit", default="no", namespaces=ns).lower()
     explicit_flag = "true" if (explicit_raw in ("yes", "true") or not clean_url) else "false"
 
@@ -96,23 +105,23 @@ for item in items[:1]:  # latest only
         "title": title,
         "link": link,
         "description": description,
-        "pubDate": item.findtext("pubDate", default=""),
-        "releaseDate": release_date,
-        "guid": item.findtext("guid", default=""),
+        "pubDate": item.findtext("pubDate", default="").strip(),
+        "releaseDate": release_date_key,
+        "guid": item.findtext("guid", default="").strip(),
         "episodeType": "full",
-        "episode": item.findtext("itunes:episode", default="", namespaces=ns),
-        "itunes_title": item.findtext("itunes:title", default="", namespaces=ns),
+        "episode": item.findtext("itunes:episode", default="", namespaces=ns).strip(),
+        "itunes_title": item.findtext("itunes:title", default="", namespaces=ns).strip(),
         "author": "This American Life",
         "explicit": explicit_flag,
-        "image": item.find("itunes:image", ns).attrib.get("href") if item.find("itunes:image", ns) is not None else "",
-        "enclosure": item.find("enclosure").attrib.get("url") if item.find("enclosure") is not None else "",
-        "duration": item.findtext("itunes:duration", default="", namespaces=ns),
-        "subtitle": item.findtext("itunes:subtitle", default="", namespaces=ns),
+        "image": item.find("itunes:image", ns).attrib.get("href").strip() if item.find("itunes:image", ns) is not None else "",
+        "enclosure": item.find("enclosure").attrib.get("url").strip() if item.find("enclosure") is not None else "",
+        "duration": item.findtext("itunes:duration", default="", namespaces=ns).strip(),
+        "subtitle": item.findtext("itunes:subtitle", default="", namespaces=ns).strip(),
         "summary": "",
         "clean": clean_url
     }
     new_rows.append(row)
-    existing_keys.add((release_date, title))  # prevent duplicates within the same run
+    existing_keys.add((release_date_key, title_key))  # prevent duplicates within the same run
 
 # --- Write CSV: prepend new episodes ---
 with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
@@ -122,5 +131,3 @@ with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
         writer.writerow(row)
 
 print(f"Saved {len(new_rows)} new episode(s) to {CSV_FILE}")
-
-
