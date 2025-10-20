@@ -56,7 +56,7 @@ def main():
         rel_dt = parse_date(row['releaseDate'].strip()) if row['releaseDate'].strip() else None
         title_base = row['title'].strip()
         title = title_base
-        if pub_dt and rel_dt and pub_dt.isocalendar()[1] != rel_dt.isocalendar()[1]:
+        if pub_dt and rel_dt and (pub_dt.year != rel_dt.year or pub_dt.isocalendar()[1] != rel_dt.isocalendar()[1]):
             title += " - Repeat"
 
         # Normal and clean items
