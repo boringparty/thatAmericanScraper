@@ -63,30 +63,37 @@ def main():
         for clean_suffix, enclosure_url in [(False, row['enclosure'].strip()), (True, row['clean'].strip())]:
             if clean_suffix and not enclosure_url:
                 continue
+
             item_element = ET.SubElement(channel, 'item')
             ET.SubElement(item_element, 'title').text = title + (" (Clean)" if clean_suffix else "")
             ET.SubElement(item_element, 'link').text = row['link'].strip() + ("?clean" if clean_suffix else "")
             ET.SubElement(item_element, 'itunes:episode').text = row['episode'].strip()
             ET.SubElement(item_element, 'itunes:episodeType').text = "full"
 
-            # Use CSV explicit field; force true if no clean URL
+            # Explicit
             explicit_flag = row['explicit'].strip().upper() == "TRUE" or (not clean_suffix and not row['clean'].strip())
             ET.SubElement(item_element, 'itunes:explicit').text = "true" if explicit_flag else "false"
 
+            # Description with original air date
             desc_dt = parse_date(row['releaseDate'].strip() or row['pubDate'].strip())
             desc_date_str = desc_dt.strftime("%Y-%m-%d") if desc_dt else ""
             desc_text = f"{row['description'].strip()}\n\nOriginally Aired: {desc_date_str}"
             ET.SubElement(item_element, 'description').text = desc_text
 
-            
-#            desc_dt = parse_date(row['pubDate'].strip() or row['releaseDate'].strip())
-#            desc_date_str = desc_dt.strftime("%Y-%m-%d") if desc_dt else ""
-#            desc_text = f"{row['description'].strip()}\n\nOriginally Aired: {desc_date_str}"
-#            ET.SubElement(item_element, 'description').text = desc_text
-
+            # PubDate
             pub_date_val = row['pubDate'].strip() or row['releaseDate'].strip()
             ET.SubElement(item_element, 'pubDate').text = pub_date_val
+
+            # Enclosure
             ET.SubElement(item_element, 'enclosure', url=enclosure_url, type="audio/mpeg")
+
+            # Duration (optional)
+            if row.get('duration', '').strip():
+                ET.SubElement(item_element, 'itunes:duration').text = row['duration'].strip()
+
+            # Episode-specific artwork (optional)
+            if row.get('image', '').strip():
+                ET.SubElement(item_element, 'itunes:image', href=row['image'].strip())
 
     # Pretty-print XML
     xml_str = ET.tostring(rss, encoding="utf-8")
