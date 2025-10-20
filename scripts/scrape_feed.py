@@ -33,9 +33,7 @@ def fetch_episode_page(url):
 
 def normalize_description(text):
     text = text.strip()
-    # ensure a blank line between paragraphs
     text = re.sub(r'\n\s*\n+', '\n\n', text)
-    # match Prologue or Act at start of line, remove colon, add newline
     text = re.sub(r'^(Prologue|Act \w+):\s*', r'\1\n', text, flags=re.MULTILINE)
     return text
 
@@ -54,43 +52,52 @@ def get_clean_episode(soup):
     link = soup.find("a", href=re.compile(r"clean"))
     return link['href'] if link else ""
 
-# Fetch RSS
+# --- Fetch RSS ---
 resp = requests.get(RSS_URL)
 resp.raise_for_status()
 root = ET.fromstring(resp.content)
 items = root.findall(".//item")
 
-# Read existing CSV if exists
+# --- Read existing CSV ---
 try:
     with open(CSV_FILE, newline="", encoding="utf-8") as f:
         existing = list(csv.DictReader(f))
 except FileNotFoundError:
     existing = []
 
-# Prepare new rows (latest episode only)
+# --- Build set of existing (releaseDate, title) keys ---
+existing_keys = {(row['releaseDate'], row['title']) for row in existing}
+
+# --- Prepare new rows ---
 new_rows = []
 
-for item in items[:1]:  # only the latest
+for item in items[:1]:  # latest only
     link = item.findtext("link", default="")
     soup = fetch_episode_page(link)
     if soup is None:
         print(f"Skipping episode {link}")
         continue
-    
+
+    release_date = get_release_date(soup).split("T")[0]
+    title = item.findtext("title", default="").strip()
+
+    if (release_date, title) in existing_keys:
+        print(f"Skipping duplicate: {title} ({release_date})")
+        continue
+
     raw_desc = item.findtext("itunes:summary", default="", namespaces=ns)
     description = normalize_description(raw_desc)
     clean_url = get_clean_episode(soup)
-    
+
     explicit_raw = item.findtext("itunes:explicit", default="no", namespaces=ns).lower()
-    # convert to TRUE/FALSE; force TRUE if no clean URL
     explicit_flag = "true" if (explicit_raw in ("yes", "true") or not clean_url) else "false"
-    
+
     row = {
-        "title": item.findtext("title", default=""),
+        "title": title,
         "link": link,
         "description": description,
         "pubDate": item.findtext("pubDate", default=""),
-        "releaseDate": get_release_date(soup).split("T")[0],
+        "releaseDate": release_date,
         "guid": item.findtext("guid", default=""),
         "episodeType": "full",
         "episode": item.findtext("itunes:episode", default="", namespaces=ns),
@@ -105,8 +112,9 @@ for item in items[:1]:  # only the latest
         "clean": clean_url
     }
     new_rows.append(row)
+    existing_keys.add((release_date, title))  # prevent duplicates within the same run
 
-# Write CSV: new episode(s) at the top
+# --- Write CSV: prepend new episodes ---
 with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=fields, quoting=csv.QUOTE_ALL)
     writer.writeheader()
@@ -114,3 +122,5 @@ with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
         writer.writerow(row)
 
 print(f"Saved {len(new_rows)} new episode(s) to {CSV_FILE}")
+
+
